@@ -12,87 +12,77 @@ from selenium.webdriver.chrome.options import Options
 # Configurações do Selenium
 options = Options()
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+driver.implicitly_wait(20)
 
-# Função para buscar produtos no Mercado Livre com base na entrada do usuário e rolamento da página
-def buscar_produtos(tipo_produto):
-    # Acesse a página principal do Mercado Livre
-    driver.get("https://www.mercadolivre.com.br/")
+# Função para buscar e extrair dados
+def buscar_produtos_google_shopping(busca):
+    driver.get(f"https://www.google.com/search?sca_esv=a0b6cc145a6c8085&hl=pt-BR&sxsrf=ADLYWIIk6nMp-BrVxWs1sulbKd-7_Wp4vg:1730941974229&q={busca}")
 
-    # Encontrar a caixa de pesquisa e digitar o termo fornecido
-    search_box = driver.find_element(By.NAME, "as_word")
-    search_box.send_keys(tipo_produto)
-    search_box.send_keys(Keys.RETURN)
-
-    # Esperar até que os resultados carreguem completamente
+    # Espera até que o botão 'Shopping' esteja visível e clica nele
     try:
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "ui-search-results"))
+        botao_shopping = WebDriverWait(driver, 20).until(
+            EC.element_to_be_clickable((By.LINK_TEXT, "Shopping"))
         )
+        botao_shopping.click()
     except Exception as e:
-        print("Erro ao carregar resultados:", e)
+        print(f"Erro ao clicar no botão Shopping: {e}")
+        driver.quit()
         return
 
-    # Rolagem da página para carregar mais produtos
-    for _ in range(3):  # Rola a página 3 vezes
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(3)  # Aguardar mais tempo para garantir o carregamento completo dos resultados
+    # Espera até que os resultados da aba 'Shopping' sejam carregados
+    WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, ".sh-dgr__content"))
+    )
 
-    # Listar os produtos encontrados
+    # Rola a página para garantir o carregamento dos produtos
     produtos = []
-    try:
-        # Aguardar até que a lista de resultados esteja disponível
-        items = driver.find_elements(By.CSS_SELECTOR, ".ui-search-result")
+    max_produtos = 10
+    produtos_encontrados = 0
 
-        if not items:
-            print("Nenhum produto encontrado.")
-            return
+    while produtos_encontrados < max_produtos:
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(2)
 
-        print(f"Total de {len(items)} itens encontrados.")
-
+        # Coleta os produtos
+        items = driver.find_elements(By.CSS_SELECTOR, ".sh-dgr__content")
         for item in items:
+            if produtos_encontrados >= max_produtos:
+                break  # Limita a 10 produtos
+
             try:
-                # Extrair o nome do produto
-                nome_item = WebDriverWait(nome, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "title_next"))).text
-                nome = nome_item
+                nome = item.find_element(By.CSS_SELECTOR, ".Xjkr3b").text
+            except:
+                nome = "Nome não encontrado"
                 
-                # Esperar explicitamente até que o preço esteja visível
-                preco_element = WebDriverWait(item, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, ".price__symbol"))
-                )
-                preco = preco_element.text
+            try:
+                preco = item.find_element(By.CSS_SELECTOR, ".T14wmb").text
+            except:
+                preco = "Preço não disponível"
 
-                # Extrair o link do produto
-                link_item = WebDriverWait(link,10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "a.ui-search-item__link"))).get_attribute('href')
-                link = link_item
+            link = item.find_element(By.TAG_NAME, "a").get_attribute("href")
 
-                # Adicionar os dados ao produto
-                produto = {
-                    'nome': nome,
-                    'preco': preco,
-                    'link': link
-                }
-                produtos.append(produto)
-            except Exception as e:
-                print(f"Erro ao extrair um produto: {e}")
-    except Exception as e:
-        print(f"Erro ao localizar produtos na página: {e}")
+            produto = {
+                'nome': nome,
+                'preco': preco,
+                'link': link
+            }
+            produtos.append(produto)
+            produtos_encontrados += 1
 
-    # Salvar os dados em um arquivo JSON
-    with open(f"{tipo_produto}_produtos.json", "w", encoding="utf-8") as f:
+        if produtos_encontrados >= max_produtos:
+            break
+
+    # Salva os dados em JSON
+    with open(f"produtos_{busca}.json", "w", encoding="utf-8") as f:
         json.dump(produtos, f, ensure_ascii=False, indent=4)
 
-    print(f"Busca concluída para '{tipo_produto}', {len(produtos)} produtos encontrados.")
+    print(f"Busca completa para '{busca}'. {len(produtos)} produtos encontrados.")
 
-# Solicitar ao usuário o tipo de celular ou produto para busca
-tipo_produto = input("Digite o tipo de celular ou produto para buscar: ")
+# Entrada do usuário
+busca = input("Digite o produto que você deseja buscar: ")
 
-# Exibir uma mensagem indicando que a busca está começando
-print(f"Iniciando busca para '{tipo_produto}'...")
+# Chama a função
+buscar_produtos_google_shopping(busca)
 
-# Executando a busca
-buscar_produtos(tipo_produto)
-
-# Fechar o navegador
+# Fecha o navegador
 driver.quit()
