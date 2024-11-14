@@ -12,7 +12,7 @@ from selenium.webdriver.chrome.options import Options
 # Configurações do Selenium
 options = Options()
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-driver.implicitly_wait(20)
+driver.implicitly_wait(10)
 
 # Função para buscar e extrair dados
 def buscar_produtos_google_shopping(busca):
@@ -20,7 +20,7 @@ def buscar_produtos_google_shopping(busca):
 
     # Espera até que o botão 'Shopping' esteja visível e clica nele
     try:
-        botao_shopping = WebDriverWait(driver, 20).until(
+        botao_shopping = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.LINK_TEXT, "Shopping"))
         )
         botao_shopping.click()
@@ -30,7 +30,7 @@ def buscar_produtos_google_shopping(busca):
         return
 
     # Espera até que os resultados da aba 'Shopping' sejam carregados
-    WebDriverWait(driver, 20).until(
+    WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, ".sh-dgr__content"))
     )
 
@@ -50,16 +50,16 @@ def buscar_produtos_google_shopping(busca):
                 break  # Limita a 10 produtos
 
             try:
-                nome = item.find_element(By.CSS_SELECTOR, ".Xjkr3b").text
+                nome = item.find_element(By.XPATH, "/html/body/div[4]/div/div[4]/div[3]/div/div[3]/div[1]/g-scrolling-carousel/div[1]/div/div/div[1]/a/div[3]/div/p//text()").text
             except:
                 nome = "Nome não encontrado"
                 
             try:
-                preco = item.find_element(By.CSS_SELECTOR, ".T14wmb").text
+                preco = item.find_element(By.XPATH, "/html/body/div[4]/div/div[4]/div[3]/div/div[3]/div[1]/g-scrolling-carousel/div[1]/div/div/div[1]/a/div[3]/div/div[1]/span/p//text()").text
             except:
                 preco = "Preço não disponível"
 
-            link = item.find_element(By.TAG_NAME, "a").get_attribute("href")
+            link = item.find_element(By.XPATH, "/html/body/div[4]/div/div[4]/div[3]/div/div[3]/div[1]/g-scrolling-carousel/div[1]/div/div/div[1]/a/p//text()")
 
             produto = {
                 'nome': nome,
